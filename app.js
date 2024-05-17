@@ -1,6 +1,7 @@
 const express = require('express');
 const userRoutes = require('./routes/userRoutes');
 const postRoutes = require('./routes/postRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 
 const app = express();
 
@@ -18,6 +19,9 @@ app.use('/users', userRoutes);
 
 // Routes for post-related requests
 app.use('/posts', postRoutes);
+
+//Routes for friend-related requests
+app.use('/friends', friendRoutes); 
 
 // Basic route to check if the server is running
 app.get('/', (req, res) => {
