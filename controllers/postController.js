@@ -1,6 +1,8 @@
 const { Storage } = require('@google-cloud/storage');
 const path = require('path');
 const Post = require('../models/Post');
+const User = require('../models/User');
+const moment = require('moment');  // Used for calculating time difference
 
 // Ensure the GCP key file is defined
 if (!process.env.GCP_KEY_FILE) {
@@ -12,57 +14,120 @@ const storage = new Storage({
     keyFilename: path.resolve(__dirname, process.env.GCP_KEY_FILE)
 });
 
-
 // Reference to the GCP bucket
 const bucket = storage.bucket('authseq_bucket');
 
+// Function to create a post
 const createPost = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).send('No photo uploaded');
+        // Check if any photos were uploaded
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).send('No photos uploaded');
         }
+        // Check if a description was provided
         if (!req.body.description) {
             return res.status(400).send('Description is required');
         }
-        // Create a reference to the new file in the bucket
-        const blob = bucket.file(req.file.originalname);
-        const blobStream = blob.createWriteStream({
-            metadata: {
-                contentType: req.file.mimetype,
-            },
-        });
 
-        // Handle errors during the upload to GCP
-        blobStream.on('error', err => {
-            console.error('Error in blobStream:', err);
-            return res.status(500).send('Error uploading photo to GCP');
-        });
+        if (req.files.length > 5) {
+            return res.status(400).send('A post can have at most 5 photos')
+        }
 
-        // After the file upload completes
-        blobStream.on('finish', async () => {
-            // Construct the public URL of the uploaded photo
-            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-            try {
-                // Create a new post record in the database
-                const post = await Post.create({
-                    userId: req.user.userId,
-                    description: req.body.description,
-                    photoUrl: publicUrl
+        const photoUrls = []; // Array to store photo URLs
+
+        // Loop through each uploaded file
+        for (const file of req.files) {
+            const blob = bucket.file(file.originalname);
+            const blobStream = blob.createWriteStream({
+                metadata: {
+                    contentType: file.mimetype,
+                },
+            });
+
+            // Upload each file to GCP
+            await new Promise((resolve, reject) => {
+                blobStream.on('error', err => {
+                    console.error('Error in blobStream:', err);
+                    reject('Error uploading photo to GCP');
                 });
-                res.status(201).json({ message: 'Post created successfully', post });
-            } catch (error) {
-                console.error('Error saving post:', error);
-                res.status(500).send('Server Error');
-            }
+
+                blobStream.on('finish', () => {
+                    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    photoUrls.push(publicUrl); // Add the public URL of each photo to the array
+                    resolve();
+                });
+
+                blobStream.end(file.buffer);
+            });
+        }
+
+        // Create a new post in the database
+        const post = await Post.create({
+            userId: req.user.userId,
+            description: req.body.description,
+            photoUrls: photoUrls, // Store multiple photo URLs
         });
-        // End the stream and upload the file
-        blobStream.end(req.file.buffer);
+
+        res.status(201).json({ message: 'Post created successfully', post });
     } catch (error) {
         console.error('Error creating post:', error);
         res.status(500).json({ message: 'Server Error while creating post', error });
     }
 };
 
+// Function to get all posts and calculate time difference
+const getPosts = async (req, res) => {
+    try {
+        const posts = await Post.findAll({
+            include: [{ model: User, attributes: ['username'] }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        // Calculate the time difference for each post
+        const result = posts.map(post => {
+            const timeDiff = moment(post.createdAt).fromNow();
+            return {
+                ...post.toJSON(),
+                timeDiff // Add the time difference information
+            };
+        });
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error fetching posts:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// Function to update the description of a post
+const updatePostDescription = async (req, res) => {
+    try {
+        const { postId, description } = req.body;
+        const post = await Post.findByPk(postId);
+
+        // Check if the post exists
+        if (!post) {
+            return res.status(404).json({ message: 'Post not found' });
+        }
+
+        // Check if the user is authorized to update the post
+        if (post.userId !== req.user.userId) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        // Update the post description
+        post.description = description;
+        await post.save();
+
+        res.json({ message: 'Post updated successfully', post });
+    } catch (error) {
+        console.error('Error updating post:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 module.exports = {
     createPost,
+    getPosts,
+    updatePostDescription,
 };
