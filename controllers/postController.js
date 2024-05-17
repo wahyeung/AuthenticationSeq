@@ -75,12 +75,20 @@ const createPost = async (req, res) => {
     }
 };
 
-// Function to get all posts and calculate time difference
+
+// Function to get all posts with pagination Req3
 const getPosts = async (req, res) => {
     try {
-        const posts = await Post.findAll({
+        // Get page and limit from query parameters (default to 1 and 10 if not provided)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        const { count, rows: posts } = await Post.findAndCountAll({
             include: [{ model: User, attributes: ['username'] }],
-            order: [['createdAt', 'DESC']]
+            order: [['createdAt', 'DESC']],
+            limit,
+            offset
         });
 
         // Calculate the time difference for each post
@@ -92,7 +100,12 @@ const getPosts = async (req, res) => {
             };
         });
 
-        res.json(result);
+        res.json({
+            totalPosts: count,
+            totalPages: Math.ceil(count / limit),
+            currentPage: page,
+            posts: result
+        });
     } catch (error) {
         console.error('Error fetching posts:', error);
         res.status(500).json({ message: 'Server Error' });
