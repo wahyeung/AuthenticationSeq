@@ -1,13 +1,18 @@
 const express = require('express');
-const { createPost } = require('../controllers/postController');
+const { createPost, getPosts, updatePostDescription } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() }); // Configure multer to store uploaded files in memory
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
-// Define a POST route to create a new post
-// This route requires authentication and handles a single photo upload
-router.post('/create', authMiddleware, upload.single('photo'), createPost);
+// Route to create a new post, with up to 5 photos
+router.post('/create', authMiddleware, upload.array('photos', 5), createPost);
+
+// Route to get all posts
+router.get('/get', authMiddleware, getPosts);
+
+// Route to update a post's description
+router.put('/update-description', authMiddleware, updatePostDescription);
 
 module.exports = router;

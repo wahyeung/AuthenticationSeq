@@ -8,19 +8,27 @@ const Post = sequelize.define('Post', {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    photoUrl: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
+
     userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
     },
+    
+    createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+    },
+    photoUrls: {
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        allowNull: false,
+
+    }
 });
 
 // Define the association between Post and User models
 Post.associate = function(models) {
-    Post.belongsTo(User, { foreignKey: 'userId' });
+    Post.belongsTo(models.User, { foreignKey: 'userId' });
 };
 
 module.exports = Post;

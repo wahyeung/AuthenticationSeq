@@ -77,6 +77,53 @@ Request Body (Form-Data):
 description: Your post description
 photo: The photo file to upload
 
+# Req2 Implementation
+
+## Changes Implemented
+- Added `createdAt` attribute to posts
+- Implemented time difference calculation for posts
+- Enabled posts to have multiple photos (up to 5)
+- Added functionality to edit post descriptions
+
+
+## API Endpoints
+
+**Create Post:**
+- Endpoint: `POST /posts/create`
+- Headers: 
+  ```json
+  {
+    "Authorization": "Bearer your_jwt_token"
+  }
+
+Body(Form-Data):
+description: Your post description
+photos:The phto files to upload(up to 5)
+
+**Get Post:**
+Endpoints:GET/posts/get
+Headers:
+{
+  "Authorization": "Bearer your_jwt_token"
+}
+
+
+**Updated Post Description:**
+Endpoints:'PUT/posts/update-description'
+Headers:
+{
+  "Authorization": "Bearer your_jwt_token"
+}
+
+Body:
+{
+  "postId": "id_of_the_post_to_update",
+  "description": "new_post_description"
+}
+
+
+
+
 
 **Get Posts with Pagination:**
 Endpoint: 'GET/posts'
