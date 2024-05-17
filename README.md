@@ -104,6 +104,7 @@ Body:
 }
 
 **Get Friends List with Mutual Friends Count:**
+Endpoind:'GET/friends/gets'
 Headers:
 {
   "Authorization": "Bearer your_jwt_token"
